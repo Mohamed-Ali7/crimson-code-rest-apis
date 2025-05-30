@@ -1,6 +1,10 @@
 package com.crimson_code_blog_rest_apis.services.impl;
 
+import java.io.IOException;
 import java.lang.reflect.Type;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -86,6 +90,18 @@ public class UserServiceImpl implements UserService {
 				.orElseThrow(() -> new ResourceNotFoundException("User does not exist with email: " + userEmail));
 	
 		if (profilePicture != null && !profilePicture.isEmpty()) {
+			
+			if (user.getProfileImgUrl() != null) {
+		        String existingImagePath = user.getProfileImgUrl().replace("/images/", "uploads/");
+		        Path existingImage = Paths.get(existingImagePath);
+
+		        try {
+		            Files.deleteIfExists(existingImage);
+		        } catch (IOException e) {
+		            throw new CrimsonCodeGlobalException("Failed to delete existing image.");
+		        }
+		    }
+			
 			String fileName = user.getPublicId() + "_" + profilePicture.getOriginalFilename();
 			GlobalUtils.saveImage(profilePicture, fileName, "profile_pictures/");
 			String profileImageUrl = "/images/profile_pictures/" + fileName;
@@ -206,6 +222,17 @@ public class UserServiceImpl implements UserService {
 		//entityManager.clear();
 		
 		userRepository.delete(userEntity);
+		
+		if (userEntity.getProfileImgUrl() != null) {
+	        String existingImagePath = userEntity.getProfileImgUrl().replace("/images/", "uploads/");
+	        Path existingImage = Paths.get(existingImagePath);
+
+	        try {
+	            Files.deleteIfExists(existingImage);
+	        } catch (IOException e) {
+	            throw new CrimsonCodeGlobalException("Failed to delete existing image.");
+	        }
+	    }
 		
 	}
 

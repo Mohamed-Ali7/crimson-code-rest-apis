@@ -273,6 +273,17 @@ public class PostServiceImpl implements PostService {
 
 		commentRepository.deleteByPostId(postId);
 		postRepository.delete(postEntity);
+		
+		if (postEntity.getImageUrl() != null) {
+	        String existingImagePath = postEntity.getImageUrl().replace("/images/", "uploads/");
+	        Path existingImage = Paths.get(existingImagePath);
+
+	        try {
+	            Files.deleteIfExists(existingImage);
+	        } catch (IOException e) {
+	            throw new CrimsonCodeGlobalException("Failed to delete existing image.");
+	        }
+	    }
 	}
 
 	private PageResponseModel<PostResponseModel> buildPostsPage(Page<PostEntity> postsPage, int page) {

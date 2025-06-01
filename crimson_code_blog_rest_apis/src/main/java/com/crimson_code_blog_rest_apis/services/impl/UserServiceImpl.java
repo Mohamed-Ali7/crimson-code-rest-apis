@@ -39,9 +39,9 @@ import com.crimson_code_blog_rest_apis.repository.PasswordResetTokenRepository;
 import com.crimson_code_blog_rest_apis.repository.PostRepository;
 import com.crimson_code_blog_rest_apis.repository.UserRepository;
 import com.crimson_code_blog_rest_apis.security.UserPrincipal;
+import com.crimson_code_blog_rest_apis.services.CloudinaryService;
 import com.crimson_code_blog_rest_apis.services.EmailService;
 import com.crimson_code_blog_rest_apis.services.UserService;
-import com.crimson_code_blog_rest_apis.utils.GlobalUtils;
 import com.crimson_code_blog_rest_apis.utils.JwtTokenType;
 import com.crimson_code_blog_rest_apis.utils.JwtUtils;
 
@@ -65,11 +65,13 @@ public class UserServiceImpl implements UserService {
 	private PasswordEncoder passwordEncoder;
 	private PostRepository postRepository;
 	private CommentRepository commentRepository;
+	private CloudinaryService cloudinaryService;
 	
 	@Autowired
 	public UserServiceImpl(UserRepository userRepository, ModelMapper modelMapper, JwtUtils jwtUtils,
 			EmailService emailService, PasswordResetTokenRepository passwordResetTokenRepository,
-			PasswordEncoder passwordEncoder, PostRepository postRepository, CommentRepository commentRepository) {
+			PasswordEncoder passwordEncoder, PostRepository postRepository, CommentRepository commentRepository,
+			CloudinaryService cloudinaryService) {
 
 		this.userRepository = userRepository;
 		this.modelMapper = modelMapper;
@@ -79,6 +81,7 @@ public class UserServiceImpl implements UserService {
 		this.passwordEncoder = passwordEncoder;
 		this.postRepository = postRepository;
 		this.commentRepository = commentRepository;
+		this.cloudinaryService = cloudinaryService;
 	}
 
 	@Override
@@ -90,22 +93,13 @@ public class UserServiceImpl implements UserService {
 				.orElseThrow(() -> new ResourceNotFoundException("User does not exist with email: " + userEmail));
 	
 		if (profilePicture != null && !profilePicture.isEmpty()) {
-			
-			if (user.getProfileImgUrl() != null) {
-		        String existingImagePath = user.getProfileImgUrl().replace("/images/", "uploads/");
-		        Path existingImage = Paths.get(existingImagePath);
-
-		        try {
-		            Files.deleteIfExists(existingImage);
-		        } catch (IOException e) {
-		            throw new CrimsonCodeGlobalException("Failed to delete existing image.");
-		        }
-		    }
-			
-			String fileName = user.getPublicId() + "_" + profilePicture.getOriginalFilename();
-			GlobalUtils.saveImage(profilePicture, fileName, "profile_pictures/");
-			String profileImageUrl = "/images/profile_pictures/" + fileName;
-			user.setProfileImgUrl(profileImageUrl);
+			try {
+				String imagePublicId = "user_" + user.getPublicId() + "_profile";
+				String profileImageUrl = cloudinaryService.uploadFile(profilePicture, "profile_pictures", imagePublicId);
+				user.setProfileImgUrl(profileImageUrl);
+			} catch (IOException e) {
+				throw new CrimsonCodeGlobalException("Image upload failed - " + e.getMessage());
+			}
 		}
 		userRepository.save(user);
 		
@@ -224,14 +218,8 @@ public class UserServiceImpl implements UserService {
 		userRepository.delete(userEntity);
 		
 		if (userEntity.getProfileImgUrl() != null) {
-	        String existingImagePath = userEntity.getProfileImgUrl().replace("/images/", "uploads/");
-	        Path existingImage = Paths.get(existingImagePath);
-
-	        try {
-	            Files.deleteIfExists(existingImage);
-	        } catch (IOException e) {
-	            throw new CrimsonCodeGlobalException("Failed to delete existing image.");
-	        }
+	        String profileImageId = "user_" + userEntity.getPublicId() + "_profile";
+	        cloudinaryService.deleteFile(profileImageId);
 	    }
 		
 	}

@@ -42,11 +42,14 @@ import com.crimson_code_blog_rest_apis.repository.PostRepository;
 import com.crimson_code_blog_rest_apis.repository.TagRepository;
 import com.crimson_code_blog_rest_apis.repository.UserRepository;
 import com.crimson_code_blog_rest_apis.security.UserPrincipal;
+import com.crimson_code_blog_rest_apis.services.CloudinaryService;
 import com.crimson_code_blog_rest_apis.services.PostService;
-import com.crimson_code_blog_rest_apis.utils.GlobalUtils;
 import com.crimson_code_blog_rest_apis.utils.UserRoles;
 
 import jakarta.transaction.Transactional;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 @Service
@@ -58,17 +61,21 @@ public class PostServiceImpl implements PostService {
 	private TagRepository tagRepository;
 	private static ModelMapper modelMapper;
 	private CommentRepository commentRepository;
+	private CloudinaryService cloudinaryService;
+	
+	private static final Logger log = LoggerFactory.getLogger(PostServiceImpl.class);
 
 	@Autowired
 	public PostServiceImpl(PostRepository postRepository, UserRepository userRepository,
 			CategoryRepository categoryRepository, TagRepository tagRepository, ModelMapper modelMapper,
-			CommentRepository commentRepository) {
+			CommentRepository commentRepository, CloudinaryService cloudinaryService) {
 		this.postRepository = postRepository;
 		this.userRepository = userRepository;
 		this.categoryRepository = categoryRepository;
 		this.tagRepository = tagRepository;
 		PostServiceImpl.modelMapper = modelMapper;
 		this.commentRepository = commentRepository;
+		this.cloudinaryService = cloudinaryService;
 	}
 
 	@Override
@@ -95,14 +102,6 @@ public class PostServiceImpl implements PostService {
 		newPost.setUser(userEntity);
 		newPost.setCategory(categoryEntity);
 		
-		// Saving post image
-		if (postImage != null && !postImage.isEmpty()) {
-			String fileName = UUID.randomUUID().toString() + "_" + postImage.getOriginalFilename();
-			GlobalUtils.saveImage(postImage, fileName, "post_image/");
-			String imageUrl = "/images/post_image/" + fileName;
-			newPost.setImageUrl(imageUrl);
-		}
-		
 		if (postRequest.getTags() != null) {
 			postRequest.getTags().forEach(tag -> {
 				TagEntity tagEntity = tagRepository.findByNameIgnoreCase(tag)
@@ -112,6 +111,18 @@ public class PostServiceImpl implements PostService {
 		}
 		
 		PostEntity savedPost = postRepository.save(newPost);
+		
+		// Saving post image
+		if (postImage != null && !postImage.isEmpty()) {
+			try {
+				String thumbnailPublicId = "post_" + savedPost.getId() + "_thumbnail";
+				String imageUrl = cloudinaryService.uploadFile(postImage, "post_thumbnails", thumbnailPublicId);
+				savedPost.setImageUrl(imageUrl);
+				postRepository.save(savedPost);
+			} catch (IOException ex) {
+				log.warn("Post thumbnail upload failed. Proceeding without thumbnail.");
+			}
+		}
 		
 		PostResponseModel postResponse = mapToPostResponse(savedPost);
 		
@@ -207,24 +218,14 @@ public class PostServiceImpl implements PostService {
 		
 		
 		if (postImage != null && !postImage.isEmpty()) {
-			
-			if (postEntity.getImageUrl() != null) {
-		        String existingImagePath = postEntity.getImageUrl().replace("/images/", "uploads/");
-		        Path existingImage = Paths.get(existingImagePath);
-
-		        try {
-		            Files.deleteIfExists(existingImage);
-		        } catch (IOException e) {
-		            throw new CrimsonCodeGlobalException("Failed to delete existing image.");
-		        }
-		    }
-			
-			String fileName = UUID.randomUUID().toString() + "_" + postImage.getOriginalFilename();
-			GlobalUtils.saveImage(postImage, fileName, "post_image/");
-			String imageUrl = "/images/post_image/" + fileName;
-			postEntity.setImageUrl(imageUrl);
+			try {
+				String thumbnailPublicId = "post_" + postEntity.getId() + "_thumbnail";
+				String imageUrl = cloudinaryService.uploadFile(postImage, "post_thumbnails", thumbnailPublicId);
+				postEntity.setImageUrl(imageUrl);
+			} catch (IOException ex) {
+				log.warn("Post thumbnail upload failed. Proceeding without thumbnail.");
+			}
 		}
-		
 		
 		if (postRequest.getTags() != null) {
 			
@@ -275,14 +276,8 @@ public class PostServiceImpl implements PostService {
 		postRepository.delete(postEntity);
 		
 		if (postEntity.getImageUrl() != null) {
-	        String existingImagePath = postEntity.getImageUrl().replace("/images/", "uploads/");
-	        Path existingImage = Paths.get(existingImagePath);
-
-	        try {
-	            Files.deleteIfExists(existingImage);
-	        } catch (IOException e) {
-	            throw new CrimsonCodeGlobalException("Failed to delete existing image.");
-	        }
+			String tumbnailId = "post_" + postEntity.getId() + "_thumbnail";
+			cloudinaryService.deleteFile(tumbnailId);
 	    }
 	}
 

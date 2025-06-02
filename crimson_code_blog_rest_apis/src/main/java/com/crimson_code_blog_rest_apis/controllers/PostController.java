@@ -23,15 +23,23 @@ import com.crimson_code_blog_rest_apis.dto.request.PostRequestModel;
 import com.crimson_code_blog_rest_apis.dto.response.OperationStatusResponse;
 import com.crimson_code_blog_rest_apis.dto.response.PageResponseModel;
 import com.crimson_code_blog_rest_apis.dto.response.PostResponseModel;
+import com.crimson_code_blog_rest_apis.exceptions.ErrorResponse;
 import com.crimson_code_blog_rest_apis.security.UserPrincipal;
 import com.crimson_code_blog_rest_apis.services.PostService;
 import com.crimson_code_blog_rest_apis.utils.OperationName;
 import com.crimson_code_blog_rest_apis.utils.OperationStatus;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/posts")
+@Tag(name = "Posts APIs", description = "Endpoints for managing blog posts")
 public class PostController {
 
 	private PostService postService;
@@ -50,6 +58,22 @@ public class PostController {
 	 */
 	
 	@PostMapping(consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
+	@Operation(
+			summary = "Create a new post",
+	        description = "Creates a new blog post with optional image upload",
+	        responses = {
+	        		@ApiResponse(responseCode = "201", description = "Post created successfully"),
+	                @ApiResponse(responseCode = "400", description = "Invalid request payload",
+	        			content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+	        		),
+	                @ApiResponse(responseCode = "404", description = "Category not found",
+	            		content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+	                ),
+	                @ApiResponse(responseCode = "401", description = "User is not authenticated",
+        				content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+	        		)}
+	)
+	@SecurityRequirement(name = "bearerAuth")
 	public ResponseEntity<PostResponseModel> createPost(
 			@Valid @RequestPart("post") PostRequestModel postRequest,
 			@RequestPart(value = "postImage", required = false) MultipartFile postImage) {
@@ -58,11 +82,26 @@ public class PostController {
 	}
 	
 	@GetMapping("/{postId}")
+	@Operation(
+			summary = "Get post by ID",
+	        description = "Retrieves a blog post using its unique identifier",
+	        responses = {
+	        		@ApiResponse(responseCode = "200", description = "Post retrieved successfully"),
+	                @ApiResponse(responseCode = "404", description = "Post not found",
+	        			content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+	        		)}
+	)
 	public ResponseEntity<PostResponseModel> getPost(@PathVariable long postId) {
 		return new ResponseEntity<>(postService.getPost(postId), HttpStatus.OK);
 	}
 	
 	@GetMapping
+	@Operation(
+			summary = "Get all posts (paginated)",
+	        description = "Returns a paginated list of all blog posts",
+	        responses = {
+	        		@ApiResponse(responseCode = "200", description = "Posts page retrieved successfully")}
+	)
 	public ResponseEntity<PageResponseModel<PostResponseModel>> getAllPosts(
 			@RequestParam(name = "page", defaultValue = "0") int page,
 			@RequestParam(name = "size", defaultValue = "15") int pageSize,
@@ -74,6 +113,12 @@ public class PostController {
 	}
 	
 	@GetMapping("/search")
+	@Operation(
+			summary = "Search posts",
+	        description = "Search posts by keyword and tags with pagination and sorting",
+	        responses = {
+	        		@ApiResponse(responseCode = "200", description = "Search results retrieved successfully")}
+	)
 	public ResponseEntity<PageResponseModel<PostResponseModel>> searchPosts(
 			@RequestParam(name = "query", defaultValue = "") String searchQuery,
 			@RequestParam(name = "tags", defaultValue = "") List<String> tags,
@@ -88,6 +133,26 @@ public class PostController {
 	}
 	
 	@PutMapping(value = "/{postId}", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
+	@Operation(
+			summary = "Update a post (Post author and Admin only)",
+	        description = "Updates a post with new content and optional image",
+	        responses = {
+	        		@ApiResponse(responseCode = "200", description = "Post updated successfully"),
+	                @ApiResponse(responseCode = "400", description = "Invalid request payload",
+	        			content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+	        		),
+	                @ApiResponse(responseCode = "404", description = "Post or Category not found",
+	            		content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+	                ),
+	                @ApiResponse(responseCode = "401", description = "User is not authenticated",
+        				content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+	        		),
+	                @ApiResponse(responseCode = "403",
+	                	description = "Unauthorized to update this post (User is not the author or an Admin)",
+	                	content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+	                )}
+	)
+	@SecurityRequirement(name = "bearerAuth")
 	public ResponseEntity<PostResponseModel> updatePost(
 			@PathVariable long postId,
 			@AuthenticationPrincipal UserPrincipal userPrincipal,
@@ -99,6 +164,23 @@ public class PostController {
 	
 	
 	@DeleteMapping("/{postId}")
+	@Operation(
+			summary = "Delete a post (Post author and Admin only)",
+	        description = "Deletes the specified post if the user is authorized",
+	        responses = {
+	        		@ApiResponse(responseCode = "200", description = "Post deleted successfully"),
+	                @ApiResponse(responseCode = "404", description = "Post not found",
+	            		content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+	                ),
+	                @ApiResponse(responseCode = "401", description = "User is not authenticated",
+        				content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+	        		),
+	                @ApiResponse(responseCode = "403",
+	                	description = "Unauthorized to delete this post (User is not the author or an Admin)",
+	                	content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+	                )}
+	)
+	@SecurityRequirement(name = "bearerAuth")
 	public ResponseEntity<OperationStatusResponse> deletePost(@PathVariable long postId,
 			@AuthenticationPrincipal UserPrincipal userPrincipal) {
 

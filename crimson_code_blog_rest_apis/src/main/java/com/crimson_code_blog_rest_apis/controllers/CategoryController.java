@@ -19,14 +19,22 @@ import com.crimson_code_blog_rest_apis.dto.response.CategoryResponseModel;
 import com.crimson_code_blog_rest_apis.dto.response.OperationStatusResponse;
 import com.crimson_code_blog_rest_apis.dto.response.PageResponseModel;
 import com.crimson_code_blog_rest_apis.dto.response.PostResponseModel;
+import com.crimson_code_blog_rest_apis.exceptions.ErrorResponse;
 import com.crimson_code_blog_rest_apis.services.CategoryService;
 import com.crimson_code_blog_rest_apis.utils.OperationName;
 import com.crimson_code_blog_rest_apis.utils.OperationStatus;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/categories")
+@Tag(name = "Categories APIs", description = "Endpoints for managing blog post categories")
 public class CategoryController {
 
 	private CategoryService categoryService;
@@ -38,6 +46,19 @@ public class CategoryController {
 
 	@PreAuthorize("hasRole('ADMIN')")
 	@PostMapping
+	@Operation(
+			summary = "Create a new category",
+	        description = "Allows admin to create a new blog category",
+	        responses = {
+	        		@ApiResponse(responseCode = "201", description = "Category created successfully"),
+	                @ApiResponse(responseCode = "400", description = "Category name already exists or Invalid request payload",
+	        			content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+	        		),
+	                @ApiResponse(responseCode = "403", description = "User does not have Admin role",
+        				content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+	                )}
+	)
+	@SecurityRequirement(name = "bearerAuth")
 	public ResponseEntity<CategoryResponseModel> createCategory(
 			@Valid @RequestBody CategoryRequestModel categoryRequest) {
 
@@ -45,11 +66,25 @@ public class CategoryController {
 	}
 	
 	@GetMapping("/{categoryId}")
+	@Operation(
+			summary = "Get a category by ID",
+			description = "Fetch a specific blog category using its ID",
+	        responses = {
+	        		@ApiResponse(responseCode = "200", description = "Category found"),
+	        		@ApiResponse(responseCode = "404", description = "Category not found",
+	        			content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+	        		)}
+	)
 	public ResponseEntity<CategoryResponseModel> getCategory(@PathVariable long categoryId) {
 		return new ResponseEntity<>(categoryService.getCategory(categoryId), HttpStatus.OK);
 	}
 	
 	@GetMapping
+	@Operation(
+			summary = "Get all categories",
+	        description = "Retrieve all categories with pagination and sorting",
+	        responses = {@ApiResponse(responseCode = "200", description = "Categories page retrieved successfully")}
+	)
 	public ResponseEntity<PageResponseModel<CategoryResponseModel>> getAllCategories(
 			@RequestParam(name = "page", defaultValue = "0") int page,
 			@RequestParam(name = "size", defaultValue = "15") int pageSize,
@@ -61,6 +96,22 @@ public class CategoryController {
 	
 	@PreAuthorize("hasRole('ADMIN')")
 	@PutMapping("/{categoryId}")
+	@Operation(
+			summary = "Update a category",
+	        description = "Allows admin to update an existing category",
+	        responses = {
+	        		@ApiResponse(responseCode = "200", description = "Category updated successfully"),
+	                @ApiResponse(responseCode = "400", description = "Invalid request payload",
+	        			content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+	        		),
+	                @ApiResponse(responseCode = "404", description = "Category not found",
+    					content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+	                ),
+	                @ApiResponse(responseCode = "403", description = "User does not have Admin role",
+        				content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+	                )}
+	)
+	@SecurityRequirement(name = "bearerAuth")
 	public ResponseEntity<CategoryResponseModel> updateCategory(@PathVariable long categoryId,
 			@Valid @RequestBody CategoryRequestModel categoryRequest) {
 		
@@ -69,6 +120,19 @@ public class CategoryController {
 	
 	@PreAuthorize("hasRole('ADMIN')")
 	@DeleteMapping("/{categoryId}")
+	@Operation(
+			summary = "Delete a category",
+	        description = "Allows admin to delete an existing category",
+	        responses = {
+	        		@ApiResponse(responseCode = "200", description = "Category deleted successfully"),
+	                @ApiResponse(responseCode = "404", description = "Category not found",
+    					content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+	                ),
+	                @ApiResponse(responseCode = "403", description = "User does not have Admin role",
+        				content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+	                )}
+	)
+	@SecurityRequirement(name = "bearerAuth")
 	public OperationStatusResponse deleteCategory(@PathVariable long categoryId) {
 		
 		OperationStatusResponse operationStatus = new OperationStatusResponse();
@@ -85,6 +149,15 @@ public class CategoryController {
 	}
 	
 	@GetMapping("/{categoryName}/posts")
+	@Operation(
+			summary = "Get posts under a category",
+	        description = "Retrieve all posts associated with a specific category name, with pagination and sorting",
+	        responses = {
+	        		@ApiResponse(responseCode = "200", description = "Category Posts page retrieved successfully"),
+	                @ApiResponse(responseCode = "404", description = "Category not found",
+    					content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+	                )}
+	)
 	public ResponseEntity<PageResponseModel<PostResponseModel>> getCategoryPosts(@PathVariable String categoryName,
 			@RequestParam(name = "page", defaultValue = "0") int page,
 			@RequestParam(name = "size", defaultValue = "15") int pageSize,

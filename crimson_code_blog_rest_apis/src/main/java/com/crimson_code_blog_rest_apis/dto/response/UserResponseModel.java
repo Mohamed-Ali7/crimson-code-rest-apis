@@ -2,7 +2,7 @@ package com.crimson_code_blog_rest_apis.dto.response;
 
 import java.time.OffsetDateTime;
 
-public class UserResponseModel {
+public class UserResponseModel extends FollowingStatusResponseModel {
 	private String publicId;
 	private String email;
 	private String firstName;

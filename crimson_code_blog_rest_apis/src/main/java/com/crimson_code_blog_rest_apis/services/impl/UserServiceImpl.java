@@ -16,6 +16,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -108,7 +110,7 @@ public class UserServiceImpl implements UserService {
 	@Override
 	public UserResponseModel getCurrentUser(UserPrincipal userPrincipal) {
 		if (userPrincipal == null || userPrincipal.getUserEntity() == null) {
-		    throw new CrimsonCodeGlobalException("Authenticated user not found");
+		    throw new AccessDeniedException("Full authentication is required to access this resource");
 		}
 		return modelMapper.map(userPrincipal.getUserEntity(), UserResponseModel.class);
 	}
@@ -121,6 +123,15 @@ public class UserServiceImpl implements UserService {
 		
 		UserResponseModel userResponse = modelMapper.map(userEntity, UserResponseModel.class);
 
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		
+		if (authentication != null && !(authentication.getPrincipal() instanceof String)) {
+			UserEntity authenticatedUser = ((UserPrincipal) authentication.getPrincipal()).getUserEntity();
+			boolean isFollowing = userRepository.isFollowing(authenticatedUser.getId(), userEntity.getId());
+			userResponse.setIsFollowing(isFollowing);
+			System.out.println(isFollowing);
+		}
+		
 		return userResponse;
 	}
 

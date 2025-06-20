@@ -1,18 +1,17 @@
 package com.crimson_code_blog_rest_apis.dto.response;
 
-public class UserSummaryResponseModel {
+public class UserSummaryResponseModel extends FollowingStatusResponseModel {
 
-	public String publicId;
-	public String firstName;
-	public String lastName;
-	public String profileImgUrl;
+	private String publicId;
+	private String firstName;
+	private String lastName;
+	private String profileImgUrl;
 	
 	public UserSummaryResponseModel() {
 		
 	}
 
 	public UserSummaryResponseModel(String publicId, String firstName, String lastName, String profileImgUrl) {
-		super();
 		this.publicId = publicId;
 		this.firstName = firstName;
 		this.lastName = lastName;

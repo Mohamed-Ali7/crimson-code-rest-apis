@@ -2,7 +2,9 @@ package com.crimson_code_blog_rest_apis.entity;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -52,7 +54,7 @@ public class UserEntity {
 	@Column(name = "is_email_verified", nullable = false)
 	private boolean isEmailVerified = false;
 
-	@ManyToMany(fetch = FetchType.EAGER, cascade = {
+	@ManyToMany(fetch = FetchType.LAZY, cascade = {
 			CascadeType.DETACH,
 			CascadeType.MERGE,
 			CascadeType.REFRESH
@@ -78,6 +80,20 @@ public class UserEntity {
 			CascadeType.PERSIST
 	})
 	private List<CommentEntity> comments;
+	
+	@ManyToMany(fetch = FetchType.LAZY, cascade = {
+			CascadeType.DETACH,
+			CascadeType.MERGE,
+			CascadeType.REFRESH
+	})
+	
+	@JoinTable(name = "user_followings",
+			joinColumns = @JoinColumn(name = "follower_id"),
+			inverseJoinColumns = @JoinColumn(name = "following_id"))
+	Set<UserEntity> followings;
+	
+	@ManyToMany(mappedBy = "followings")
+	Set<UserEntity> followers;
 	
 	public UserEntity() {
 
@@ -204,5 +220,45 @@ public class UserEntity {
 
 	public void setComments(List<CommentEntity> comments) {
 		this.comments = comments;
+	}
+
+	public Set<UserEntity> getFollowings() {
+		return followings;
+	}
+
+	public void setFollowings(Set<UserEntity> followings) {
+		this.followings = followings;
+	}
+
+	public Set<UserEntity> getFollowers() {
+		return followers;
+	}
+
+	public void setFollowers(Set<UserEntity> followers) {
+		this.followers = followers;
+	}
+	
+	public void addFollowing(UserEntity userToFollow) {
+		if (this.followings == null) {
+			followings = new HashSet<>();
+		}
+		
+		followings.add(userToFollow);
+	}
+	
+	@Override
+	public boolean equals(Object o) {
+		
+	    if (this == o) {
+	    	return true;
+	    }
+	    
+	    if (o == null || getClass() != o.getClass()) {
+	    	return false;
+	    }
+
+	    UserEntity that = (UserEntity) o;
+
+	    return this.id == that.id;
 	}
 }
